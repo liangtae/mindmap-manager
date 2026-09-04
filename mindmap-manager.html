@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>和心 Wagokoro — Pengelola Peta Pikiran</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=Yuji+Syuku&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F3ECE0; --bg-alt:#EAE0CE; --surface:#FFFDF8; --surface-2:#F7F1E6;
+  --ink:#2B2620; --ink-soft:#6B5F4F; --ink-faint:#948A76;
+  --indigo:#2A4B7C; --indigo-soft:#3E6499; --vermillion:#C1440E; --gold:#C9A227;
+  --border:#D8CBAF; --border-soft:#E7DCC4;
+  --shadow:0 6px 18px rgba(43,38,32,.12);
+  --shadow-lg:0 18px 45px rgba(43,38,32,.22);
+  --cord:#B5382A;
+  --radius:6px;
+  --grain-opacity:.05;
+}
+html[data-theme="dark"]{
+  --bg:#14161C; --bg-alt:#1B1E27; --surface:#20232E; --surface-2:#262A37;
+  --ink:#ECE4D3; --ink-soft:#B3A98F; --ink-faint:#7B7364;
+  --indigo:#7DA6DE; --indigo-soft:#5C86C2; --vermillion:#E2703A; --gold:#E0C068;
+  --border:#383C4C; --border-soft:#2C2F3D;
+  --shadow:0 6px 18px rgba(0,0,0,.35);
+  --shadow-lg:0 18px 45px rgba(0,0,0,.5);
+  --cord:#D9573F;
+  --grain-opacity:.08;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(circle at 1px 1px, var(--border-soft) 1px, transparent 0) 0 0/22px 22px,
+    var(--bg);
+  color:var(--ink);
+  font-family:'Zen Kaku Gothic New', 'Hiragino Kaku Gothic ProN', sans-serif;
+  min-height:100vh;
+  transition:background .35s ease, color .35s ease;
+}
+.brush{font-family:'Yuji Syuku', serif;}
+.mincho{font-family:'Shippori Mincho', serif;}
+::selection{background:var(--gold); color:#20232E;}
+
+/* ---------- layout shell ---------- */
+.app{max-width:1280px; margin:0 auto; padding:22px 26px 90px;}
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding-bottom:18px; margin-bottom:20px; border-bottom:2px solid var(--border);
+  position:relative;
+}
+.topbar::after{
+  content:""; position:absolute; left:0; right:0; bottom:-6px; height:2px;
+  background:repeating-linear-gradient(90deg, var(--vermillion) 0 10px, transparent 10px 18px);
+  opacity:.55;
+}
+.brand{display:flex; align-items:center; gap:14px;}
+.brand .torii{width:44px; height:40px; flex-shrink:0;}
+.brand h1{font-size:23px; margin:0; letter-spacing:.03em; color:var(--ink);}
+.brand h1 small{display:block; font-family:'Zen Kaku Gothic New',sans-serif; font-size:11px; color:var(--ink-faint); letter-spacing:.18em; font-weight:500; margin-top:2px;}
+.top-actions{display:flex; align-items:center; gap:10px;}
+
+.icon-btn{
+  width:40px; height:40px; border-radius:50%; border:1.5px solid var(--border);
+  background:var(--surface); color:var(--ink); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:.2s; box-shadow:var(--shadow);
+}
+.icon-btn:hover{border-color:var(--indigo); color:var(--indigo); transform:translateY(-1px);}
+.icon-btn svg{width:18px; height:18px;}
+
+/* ---------- buttons ---------- */
+.btn{
+  font-family:inherit; font-size:13.5px; font-weight:700; border-radius:5px; border:1.5px solid transparent;
+  padding:10px 16px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:.18s;
+  letter-spacing:.01em;
+}
+.btn svg{width:15px; height:15px; flex-shrink:0;}
+.btn-primary{background:var(--indigo); color:#fff; box-shadow:var(--shadow);}
+.btn-primary:hover{background:var(--indigo-soft); transform:translateY(-1px);}
+.btn-vermillion{background:var(--vermillion); color:#fff;}
+.btn-vermillion:hover{filter:brightness(1.08);}
+.btn-ghost{background:transparent; border-color:var(--border); color:var(--ink);}
+.btn-ghost:hover{border-color:var(--indigo); color:var(--indigo);}
+.btn-outline{background:var(--surface); border-color:var(--border); color:var(--ink-soft);}
+.btn-outline:hover{border-color:var(--gold); color:var(--ink);}
+.btn-danger{background:transparent; border-color:var(--vermillion); color:var(--vermillion);}
+.btn-danger:hover{background:var(--vermillion); color:#fff;}
+.btn-sm{padding:7px 11px; font-size:12px; border-radius:4px;}
+.btn:disabled{opacity:.4; cursor:not-allowed; transform:none !important;}
+
+/* ---------- toolbar / controls ---------- */
+.controls{
+  display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:16px;
+  background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; box-shadow:var(--shadow);
+}
+.search-wrap{position:relative; flex:1 1 240px; min-width:200px;}
+.search-wrap svg{position:absolute; left:12px; top:50%; transform:translateY(-50%); width:15px; height:15px; color:var(--ink-faint);}
+.search-wrap input{
+  width:100%; padding:10px 12px 10px 34px; border-radius:5px; border:1.5px solid var(--border);
+  background:var(--bg); color:var(--ink); font-family:inherit; font-size:13.5px;
+}
+.search-wrap input:focus{outline:none; border-color:var(--indigo);}
+select, .sel{
+  padding:9px 10px; border-radius:5px; border:1.5px solid var(--border); background:var(--bg); color:var(--ink);
+  font-family:inherit; font-size:13px; cursor:pointer;
+}
+.divider-v{width:1px; height:26px; background:var(--border);}
+.view-toggle{display:flex; gap:6px;}
+.view-toggle .btn.active{background:var(--gold); color:#20232E; border-color:var(--gold);}
+
+.tagbar{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:18px;}
+.tag-chip{
+  font-size:12px; padding:5px 12px; border-radius:20px; border:1.3px solid var(--border);
+  background:var(--surface); color:var(--ink-soft); cursor:pointer; transition:.15s; user-select:none;
+}
+.tag-chip:hover{border-color:var(--gold);}
+.tag-chip.active{background:var(--gold); border-color:var(--gold); color:#20232E; font-weight:700;}
+.tag-chip .cnt{opacity:.6; margin-left:3px;}
+
+/* ---------- stats legend ---------- */
+.legend{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px;}
+.legend-item{
+  display:flex; align-items:center; gap:7px; padding:7px 12px; border-radius:20px; background:var(--surface);
+  border:1.3px solid var(--border); font-size:12px; color:var(--ink-soft); cursor:pointer; transition:.15s;
+}
+.legend-item:hover{transform:translateY(-1px); box-shadow:var(--shadow);}
+.legend-item.active{border-color:var(--ink); color:var(--ink); font-weight:700;}
+.legend-dot{width:9px; height:9px; border-radius:50%; flex-shrink:0;}
+
+/* ---------- mind map canvas view ---------- */
+.map-wrap{display:none; flex-direction:column; gap:10px;}
+.map-wrap.show{display:flex;}
+.map-toolbar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap; justify-content:space-between;
+  background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:10px 14px; box-shadow:var(--shadow);
+}
+.map-toolbar .hint{font-size:12px; color:var(--ink-soft); line-height:1.5;}
+.map-toolbar .map-actions{display:flex; gap:8px; flex-wrap:wrap;}
+.map-canvas{
+  position:relative; width:100%; height:min(70vh,640px); overflow:auto;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow);
+  background-image:radial-gradient(circle at 1px 1px, var(--border-soft) 1px, transparent 0);
+  background-size:22px 22px;
+}
+#mapZoomLayer{position:absolute; top:0; left:0; width:2200px; height:1500px; transform-origin:0 0; transition:transform .15s ease;}
+#mapSvg{position:absolute; top:0; left:0; width:2200px; height:1500px; overflow:visible; pointer-events:none;}
+#mapNodes{position:relative; width:2200px; height:1500px; pointer-events:none;}
+.zoom-group{display:flex; align-items:center; gap:2px; background:var(--bg); border:1.5px solid var(--border); border-radius:6px; padding:2px;}
+.zoom-group .btn{width:28px; height:28px; padding:0; justify-content:center; font-size:15px; font-weight:700; border-radius:4px; border-color:transparent; box-shadow:none;}
+.zoom-group .btn:hover{border-color:var(--indigo); background:var(--surface);}
+.zoom-level-btn{width:auto !important; padding:0 8px !important; font-size:11.5px !important; font-weight:700; min-width:44px;}
+.map-node{
+  position:absolute; width:188px; background:var(--surface); border:1.5px solid var(--border-soft);
+  border-left:5px solid var(--branch-color, var(--indigo)); border-radius:8px; padding:10px 26px 10px 12px;
+  box-shadow:var(--shadow); cursor:grab; user-select:none; touch-action:none; transition:box-shadow .15s;
+  pointer-events:auto;
+}
+.map-node:active{cursor:grabbing;}
+.map-node.dragging{box-shadow:var(--shadow-lg); z-index:50;}
+.map-node .branch-tag{
+  display:block; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--branch-color, var(--indigo)); margin-bottom:4px;
+}
+.map-node h4{margin:0; font-size:13px; line-height:1.35; color:var(--ink); pointer-events:none;}
+.map-port{
+  position:absolute; right:-8px; top:50%; transform:translateY(-50%); width:16px; height:16px;
+  border-radius:50%; background:var(--indigo); border:2.5px solid var(--surface); cursor:crosshair;
+  z-index:5; touch-action:none; box-shadow:0 0 0 1px var(--border); pointer-events:auto;
+}
+.map-port:hover{background:var(--vermillion); transform:translateY(-50%) scale(1.2);}
+.map-line-del{cursor:pointer;}
+.map-line-del circle{transition:r .12s;}
+.map-line-del:hover circle{r:10;}
+@media (max-width:640px){ .map-canvas{height:60vh;} }
+
+/* ---------- grid of ema cards ---------- */
+.grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(255px,1fr)); gap:22px;}
+.empty-state{
+  grid-column:1/-1; text-align:center; padding:70px 20px; color:var(--ink-faint);
+}
+.empty-state .brush{font-size:44px; color:var(--border); display:block; margin-bottom:10px;}
+
+.ema{
+  position:relative; background:var(--surface);
+  clip-path:polygon(0 10%, 50% 0%, 100% 10%, 100% 100%, 0% 100%);
+  padding:26px 16px 16px; border:1px solid var(--border-soft); box-shadow:var(--shadow);
+  transition:transform .18s, box-shadow .18s; cursor:default;
+}
+.ema:hover{transform:translateY(-3px); box-shadow:var(--shadow-lg);}
+.ema::before{
+  content:""; position:absolute; top:11px; left:50%; transform:translateX(-50%);
+  width:9px; height:9px; border-radius:50%; background:var(--bg); border:2px solid var(--cord); z-index:2;
+}
+.ema::after{
+  content:""; position:absolute; top:0; left:0; right:0; height:22%;
+  background:var(--branch-color, var(--indigo)); opacity:.16; clip-path:inherit;
+}
+.ema .check{
+  position:absolute; top:14px; left:12px; z-index:3; width:17px; height:17px; cursor:pointer; display:none;
+}
+.bulk-mode .ema .check{display:block;}
+.ema.selected{outline:2.5px solid var(--gold); outline-offset:2px;}
+.ema-branch{
+  display:inline-flex; align-items:center; gap:6px; font-size:10.5px; font-weight:700; letter-spacing:.05em;
+  color:var(--branch-color, var(--indigo)); text-transform:uppercase; margin-bottom:8px;
+}
+.ema-branch .dot{width:7px; height:7px; border-radius:50%; background:var(--branch-color, var(--indigo));}
+.ema h3{margin:0 0 8px; font-size:16.5px; line-height:1.35; color:var(--ink);}
+.ema p{margin:0 0 12px; font-size:12.6px; color:var(--ink-soft); line-height:1.55; max-height:58px; overflow:hidden;}
+.ema .tags{display:flex; flex-wrap:wrap; gap:5px; margin-bottom:12px;}
+.ema .tags span{font-size:10.5px; background:var(--bg-alt); color:var(--ink-soft); padding:3px 8px; border-radius:10px;}
+.ema .meta{font-size:10.5px; color:var(--ink-faint); border-top:1px dashed var(--border); padding-top:9px; display:flex; justify-content:space-between; align-items:center;}
+.ema .actions{display:flex; gap:6px;}
+.ema .actions button{
+  width:26px; height:26px; border-radius:50%; border:1px solid var(--border); background:var(--surface);
+  color:var(--ink-soft); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.15s;
+}
+.ema .actions button:hover{color:var(--indigo); border-color:var(--indigo);}
+.ema .actions button.del:hover{color:var(--vermillion); border-color:var(--vermillion);}
+.ema .actions svg{width:12.5px; height:12.5px;}
+
+/* ---------- bulk bar ---------- */
+.bulk-bar{
+  position:fixed; left:50%; bottom:22px; transform:translate(-50%,140%); z-index:60;
+  background:var(--ink); color:var(--bg); padding:12px 16px; border-radius:10px; box-shadow:var(--shadow-lg);
+  display:flex; align-items:center; gap:12px; transition:transform .25s ease; font-size:13px;
+}
+html[data-theme="dark"] .bulk-bar{background:var(--surface-2); border:1px solid var(--border);}
+.bulk-bar.show{transform:translate(-50%,0);}
+.bulk-bar .btn{padding:7px 12px; font-size:12px;}
+
+/* ---------- modal ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(20,17,12,.55); backdrop-filter:blur(2px);
+  display:flex; align-items:flex-start; justify-content:center; padding:5vh 16px; z-index:100;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.overlay.show{opacity:1; pointer-events:auto;}
+.modal{
+  background:var(--surface); border-radius:10px; width:100%; max-width:520px; box-shadow:var(--shadow-lg);
+  border:1px solid var(--border); transform:translateY(-14px); transition:transform .22s;
+  max-height:90vh; display:flex; flex-direction:column;
+}
+.overlay.show .modal{transform:translateY(0);}
+.modal-head{
+  padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;
+}
+.modal-head h2{margin:0; font-size:18px;}
+.modal-head button{background:none; border:none; cursor:pointer; color:var(--ink-faint); font-size:20px; line-height:1;}
+.modal-body{padding:20px 22px; overflow-y:auto;}
+.modal-foot{padding:16px 22px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;}
+.field{margin-bottom:15px;}
+.field label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:6px; letter-spacing:.02em;}
+.field input[type=text], .field textarea, .field select{
+  width:100%; padding:10px 11px; border-radius:5px; border:1.5px solid var(--border); background:var(--bg);
+  color:var(--ink); font-family:inherit; font-size:13.5px;
+}
+.field input:focus, .field textarea:focus, .field select:focus{outline:none; border-color:var(--indigo);}
+.field textarea{min-height:88px; resize:vertical;}
+.branch-options{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+.branch-opt{
+  display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:6px; border:1.5px solid var(--border);
+  cursor:pointer; font-size:12.5px; transition:.15s;
+}
+.branch-opt .dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+.branch-opt.sel{border-color:var(--ink); background:var(--bg-alt); font-weight:700;}
+.tag-input-box{
+  display:flex; flex-wrap:wrap; gap:6px; padding:8px; border:1.5px solid var(--border); border-radius:5px; background:var(--bg);
+}
+.tag-input-box .chip{background:var(--indigo); color:#fff; font-size:11.5px; padding:4px 9px; border-radius:12px; display:flex; align-items:center; gap:5px;}
+.tag-input-box .chip b{cursor:pointer; font-weight:900;}
+.tag-input-box input{border:none; background:none; outline:none; flex:1; min-width:80px; font-family:inherit; font-size:13px; color:var(--ink);}
+.hint{font-size:11px; color:var(--ink-faint); margin-top:5px;}
+
+.settings-section{margin-bottom:20px; padding-bottom:18px; border-bottom:1px dashed var(--border);}
+.settings-section:last-child{border-bottom:none; margin-bottom:0; padding-bottom:0;}
+.settings-section h4{margin:0 0 4px; font-size:13.5px;}
+.settings-section p{margin:0 0 10px; font-size:12px; color:var(--ink-soft); line-height:1.5;}
+.settings-row{display:flex; gap:10px; flex-wrap:wrap;}
+.theme-switch{display:flex; gap:8px;}
+.theme-switch button{
+  flex:1; padding:12px; border-radius:7px; border:1.5px solid var(--border); background:var(--bg); cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft);
+}
+.theme-switch button.active{border-color:var(--indigo); color:var(--indigo); font-weight:700; background:var(--bg-alt);}
+.danger-zone{border:1.5px dashed var(--vermillion); border-radius:7px; padding:14px;}
+
+/* ---------- toast ---------- */
+.toast-wrap{position:fixed; top:20px; right:20px; z-index:200; display:flex; flex-direction:column; gap:8px;}
+.toast{
+  background:var(--ink); color:var(--bg); padding:11px 16px; border-radius:7px; font-size:12.8px; box-shadow:var(--shadow-lg);
+  display:flex; align-items:center; gap:9px; opacity:0; transform:translateX(30px); transition:.25s; max-width:290px;
+}
+html[data-theme="dark"] .toast{background:var(--surface-2); border:1px solid var(--border);}
+.toast.show{opacity:1; transform:translateX(0);}
+.toast .dot{width:7px; height:7px; border-radius:50%; background:var(--gold); flex-shrink:0;}
+
+/* checkbox styling */
+input[type=checkbox].pretty{width:17px; height:17px; accent-color:var(--indigo); cursor:pointer;}
+
+#printArea{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #printArea, #printArea *{visibility:visible;}
+  #printArea{display:block; position:absolute; top:0; left:0; width:100%; padding:20px; color:#000; background:#fff;}
+  #printArea h1{font-family:serif; border-bottom:2px solid #000; padding-bottom:8px;}
+  #printArea table{width:100%; border-collapse:collapse; margin-top:14px;}
+  #printArea th, #printArea td{border:1px solid #999; padding:7px 9px; font-size:11px; text-align:left; vertical-align:top;}
+  #printArea th{background:#eee;}
+}
+
+@media (max-width:640px){
+  .app{padding:16px 14px 80px;}
+  .controls{padding:12px;}
+  .brand h1{font-size:18px;}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <svg class="torii" viewBox="0 0 60 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="10" width="52" height="5" rx="1" fill="var(--vermillion)"/>
+        <rect x="0" y="18" width="60" height="4.5" rx="1" fill="var(--vermillion)"/>
+        <rect x="11" y="14" width="6" height="38" rx="1" fill="var(--vermillion)"/>
+        <rect x="43" y="14" width="6" height="38" rx="1" fill="var(--vermillion)"/>
+        <rect x="24" y="24" width="12" height="4" fill="var(--gold)"/>
+      </svg>
+      <h1 class="mincho">Wagokoro <span class="brush" style="font-size:16px;">和心</span>
+        <small>PENGELOLA PETA PIKIRAN &mdash; MIND MAP MANAGER</small>
+      </h1>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btnTheme" title="Ganti tema terang/gelap">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+      </button>
+      <button class="icon-btn" id="btnSettings" title="Pengaturan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="btn btn-primary" id="btnAdd">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Node Baru
+      </button>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="controls">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="search" placeholder="Cari judul, deskripsi, atau tag…">
+    </div>
+    <select id="sortSel">
+      <option value="newest">Terbaru</option>
+      <option value="oldest">Terlama</option>
+      <option value="az">Judul A–Z</option>
+      <option value="za">Judul Z–A</option>
+      <option value="branch">Kelompok Cabang</option>
+    </select>
+    <div class="divider-v"></div>
+    <div class="view-toggle">
+      <button class="btn btn-outline active" id="btnViewActive">🗂 Aktif</button>
+      <button class="btn btn-outline" id="btnViewMap">🕸 Peta Pikiran</button>
+      <button class="btn btn-outline" id="btnViewTrash">🗑 Sampah (<span id="trashCount">0</span>)</button>
+    </div>
+    <div class="divider-v"></div>
+    <button class="btn btn-outline" id="btnBulkMode">☑ Pilih</button>
+    <button class="btn btn-outline" id="btnPrint">🖨 Cetak PDF</button>
+    <button class="btn btn-outline" id="btnExcel">📊 Ekspor Excel</button>
+  </div>
+
+  <div class="tagbar" id="tagbar"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="map-wrap" id="mapWrap">
+    <div class="map-toolbar">
+      <span class="hint">🖱️ Seret node untuk memindahkan posisi &middot; Tarik dari <b>titik biru</b> ke node lain untuk menghubungkan &middot; Klik tanda <b>×</b> merah pada garis untuk memutus koneksi.</span>
+      <div class="map-actions">
+        <div class="zoom-group">
+          <button class="btn btn-outline btn-sm" id="btnZoomOut" title="Perkecil">−</button>
+          <button class="btn btn-outline btn-sm zoom-level-btn" id="btnZoomReset" title="Atur ulang ke 100%">100%</button>
+          <button class="btn btn-outline btn-sm" id="btnZoomIn" title="Perbesar">+</button>
+        </div>
+        <button class="btn btn-outline btn-sm" id="btnFitView" title="Tampilkan seluruh node dalam satu layar">⛶ Tampilkan Semua</button>
+        <button class="btn btn-outline btn-sm" id="btnResetLayout">↺ Atur Ulang Tata Letak</button>
+        <button class="btn btn-danger btn-sm" id="btnClearConnections">✕ Hapus Semua Koneksi</button>
+      </div>
+    </div>
+    <div class="map-canvas" id="mapCanvas">
+      <div id="mapZoomLayer">
+        <svg id="mapSvg"></svg>
+        <div id="mapNodes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bulk-bar" id="bulkBar">
+  <span><b id="bulkCount">0</b> dipilih</span>
+  <button class="btn btn-vermillion btn-sm" id="bulkDelete">Hapus (Soft)</button>
+  <button class="btn btn-outline btn-sm" id="bulkRestore" style="display:none;">Pulihkan</button>
+  <button class="btn btn-danger btn-sm" id="bulkPermDelete" style="display:none;">Hapus Permanen</button>
+  <button class="btn btn-outline btn-sm" id="bulkClear">Batal</button>
+</div>
+
+<!-- Node Modal -->
+<div class="overlay" id="nodeOverlay">
+  <div class="modal">
+    <div class="modal-head"><h2 class="mincho" id="nodeModalTitle">Node Baru</h2><button id="closeNode">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="nodeId">
+      <div class="field">
+        <label>Judul Node</label>
+        <input type="text" id="fTitle" placeholder="mis. XMind">
+      </div>
+      <div class="field">
+        <label>Cabang / Kategori</label>
+        <div class="branch-options" id="branchOptions"></div>
+      </div>
+      <div class="field">
+        <label>Deskripsi</label>
+        <textarea id="fDesc" placeholder="Tuliskan detail singkat…"></textarea>
+      </div>
+      <div class="field">
+        <label>Tag</label>
+        <div class="tag-input-box" id="tagBox">
+          <input type="text" id="tagInput" placeholder="ketik lalu Enter…">
+        </div>
+        <div class="hint">Tekan Enter untuk menambah tag, Backspace untuk menghapus tag terakhir.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="cancelNode">Batal</button>
+      <button class="btn btn-primary" id="saveNode">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-head"><h2 class="mincho">Pengaturan</h2><button id="closeSettings">&times;</button></div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h4>Tema Tampilan</h4>
+        <p>Pilih mode terang atau gelap. Preferensi berlaku untuk sesi ini.</p>
+        <div class="theme-switch">
+          <button id="themeLightBtn">☀ Terang</button>
+          <button id="themeDarkBtn">🌙 Gelap</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Cadangkan Data (Backup)</h4>
+        <p>Unduh seluruh data node (termasuk sampah) sebagai file JSON.</p>
+        <button class="btn btn-outline" id="btnBackup">⬇ Unduh Backup (.json)</button>
+      </div>
+      <div class="settings-section">
+        <h4>Pulihkan Data (Restore)</h4>
+        <p>Muat kembali data dari file backup JSON. Ini akan menimpa data saat ini.</p>
+        <input type="file" id="fileRestore" accept=".json" style="display:none;">
+        <button class="btn btn-outline" id="btnRestore">⬆ Pilih File Backup</button>
+      </div>
+      <div class="settings-section">
+        <h4 style="color:var(--vermillion);">Zona Berbahaya</h4>
+        <div class="danger-zone">
+          <div class="settings-row">
+            <button class="btn btn-danger btn-sm" id="btnResetData">🗑 Reset Semua Data</button>
+            <button class="btn btn-danger btn-sm" id="btnResetSettings">↺ Reset Pengaturan</button>
+          </div>
+          <p style="margin-top:10px;">Tindakan ini permanen dan tidak dapat dibatalkan.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" id="doneSettings">Tutup</button></div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head"><h2 class="mincho" id="confirmTitle">Konfirmasi</h2><button id="closeConfirm">&times;</button></div>
+    <div class="modal-body"><p id="confirmMsg" style="font-size:13.5px; color:var(--ink-soft); line-height:1.6;"></p></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="confirmCancel">Batal</button>
+      <button class="btn btn-vermillion" id="confirmOk">Ya, Lanjutkan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<div id="printArea"></div>
+
+<script>
+/* ============ DATA MODEL (auto-tersimpan di localStorage browser) ============ */
+const STORAGE_KEY = 'wagokoro-mindmap-v1';
+
+function saveState(){
+  try{
+    const payload = {
+      nodes: state.nodes,
+      connections: state.connections,
+      theme: state.theme,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }catch(err){
+    console.error('Gagal menyimpan ke localStorage:', err);
+    toast('Gagal menyimpan otomatis (penyimpanan browser penuh/diblokir).');
+  }
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(!data || !Array.isArray(data.nodes)) return null;
+    return data;
+  }catch(err){
+    console.error('Gagal memuat dari localStorage:', err);
+    return null;
+  }
+}
+
+const BRANCHES = [
+  {key:'apps', label:'Apps', color:'#C9932B'},
+  {key:'applications', label:'Aplikasi Peta Pikiran', color:'#3E8FA6'},
+  {key:'definition', label:'Apa itu Peta Pikiran', color:'#7C5CA6'},
+  {key:'criteria', label:'Kriteria Evaluasi', color:'#A6467F'},
+  {key:'pick', label:'Pilihan Utama', color:'#A6333A'},
+  {key:'runnerup', label:'Runner Up', color:'#4F8F5C'},
+  {key:'custom', label:'Lainnya', color:'#6B5F4F'},
+];
+function branchOf(key){ return BRANCHES.find(b=>b.key===key) || BRANCHES[BRANCHES.length-1]; }
+
+let idSeed = 1;
+function uid(){ return 'nd-' + (idSeed++) + '-' + Date.now().toString(36); }
+
+function seedData(){
+  const now = Date.now();
+  const mk = (title, branch, desc, tags, daysAgo) => ({
+    id: uid(), title, branch, description: desc, tags,
+    createdAt: now - daysAgo*86400000, updatedAt: now - daysAgo*86400000,
+    deleted:false, deletedAt:null
+  });
+  return [
+    mk('XMind', 'apps', 'Aplikasi peta pikiran dengan Gantt chart, presentation mode, dan XMind ZEN. Harga $129/tahun.', ['desktop','berbayar','gantt'], 6),
+    mk('MindMeister', 'apps', 'Berbasis web, tersedia paket gratis dan berbayar $60–$99/tahun per pengguna.', ['web','kolaborasi'], 5),
+    mk('Scapple', 'apps', 'Drag-and-drop bebas bentuk untuk brainstorming, tersedia untuk OS X dan Windows.', ['brainstorm','macos'], 4),
+    mk('iThoughts', 'runnerup', 'Runner-up terbaik: ekspor Markdown, mind map lewat Siri, dukungan x-callback URL.', ['macos','ekspor'], 3),
+    mk('Mindnode', 'pick', 'Pilihan utama: UI bersih, smart layout, folding, focus mode, sinkronisasi cloud.', ['pilihan-utama','clean-ui'], 1),
+    mk('Apa itu Mind Mapping?', 'definition', 'Diagram yang menghubungkan ide-ide di sekitar satu topik/subjek utama secara visual.', ['konsep'], 8),
+    mk('Kriteria Evaluasi', 'criteria', 'Desain, kemudahan pakai, sinkronisasi lintas platform, dan portabilitas data (impor/ekspor).', ['evaluasi'], 7),
+  ];
+}
+
+const savedState = loadState();
+
+let state = {
+  nodes: savedState ? savedState.nodes : seedData(),
+  connections: savedState && Array.isArray(savedState.connections) ? savedState.connections : [], // {id, from, to} — links between nodes on the mind map canvas
+  theme: savedState && savedState.theme ? savedState.theme : 'light',
+  view: 'active', // active | trash | map
+  search: '',
+  sort: 'newest',
+  activeBranchFilter: null,
+  activeTagFilter: null,
+  bulkMode: false,
+  selected: new Set(),
+};
+
+/* ============ UTIL ============ */
+function fmtDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'});
+}
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function toast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span class="dot"></span><span>${escapeHtml(msg)}</span>`;
+  wrap.appendChild(el);
+  requestAnimationFrame(()=> el.classList.add('show'));
+  setTimeout(()=>{ el.classList.remove('show'); setTimeout(()=>el.remove(), 300); }, 2600);
+}
+
+/* ============ RENDER: LEGEND ============ */
+function renderLegend(){
+  const legend = document.getElementById('legend');
+  const activeNodes = state.nodes.filter(n=>!n.deleted);
+  legend.innerHTML = BRANCHES.filter(b=>b.key!=='custom' || activeNodes.some(n=>n.branch==='custom')).map(b=>{
+    const count = activeNodes.filter(n=>n.branch===b.key).length;
+    const isActive = state.activeBranchFilter === b.key;
+    return `<div class="legend-item ${isActive?'active':''}" data-branch="${b.key}">
+      <span class="legend-dot" style="background:${b.color}"></span>${b.label} <span style="opacity:.55">(${count})</span>
+    </div>`;
+  }).join('');
+  legend.querySelectorAll('.legend-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const k = el.dataset.branch;
+      state.activeBranchFilter = state.activeBranchFilter===k ? null : k;
+      renderAll();
+    });
+  });
+}
+
+/* ============ RENDER: TAG BAR ============ */
+function renderTagbar(){
+  const bar = document.getElementById('tagbar');
+  const pool = state.nodes.filter(n=>!n.deleted);
+  const tagCount = {};
+  pool.forEach(n => (n.tags||[]).forEach(t => tagCount[t] = (tagCount[t]||0)+1));
+  const tags = Object.keys(tagCount).sort();
+  if(!tags.length){ bar.innerHTML=''; return; }
+  bar.innerHTML = tags.map(t => {
+    const active = state.activeTagFilter === t;
+    return `<div class="tag-chip ${active?'active':''}" data-tag="${escapeHtml(t)}">#${escapeHtml(t)} <span class="cnt">${tagCount[t]}</span></div>`;
+  }).join('');
+  bar.querySelectorAll('.tag-chip').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const t = el.dataset.tag;
+      state.activeTagFilter = state.activeTagFilter===t ? null : t;
+      renderAll();
+    });
+  });
+}
+
+/* ============ FILTER + SORT ============ */
+function getVisibleNodes(){
+  let list = state.nodes.filter(n => state.view==='trash' ? n.deleted : !n.deleted);
+  if(state.search.trim()){
+    const q = state.search.trim().toLowerCase();
+    list = list.filter(n =>
+      n.title.toLowerCase().includes(q) ||
+      (n.description||'').toLowerCase().includes(q) ||
+      (n.tags||[]).some(t=>t.toLowerCase().includes(q))
+    );
+  }
+  if(state.activeBranchFilter) list = list.filter(n => n.branch === state.activeBranchFilter);
+  if(state.activeTagFilter) list = list.filter(n => (n.tags||[]).includes(state.activeTagFilter));
+
+  switch(state.sort){
+    case 'oldest': list = list.slice().sort((a,b)=>a.createdAt-b.createdAt); break;
+    case 'az': list = list.slice().sort((a,b)=>a.title.localeCompare(b.title)); break;
+    case 'za': list = list.slice().sort((a,b)=>b.title.localeCompare(a.title)); break;
+    case 'branch': list = list.slice().sort((a,b)=> a.branch.localeCompare(b.branch) || a.title.localeCompare(b.title)); break;
+    default: list = list.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  }
+  return list;
+}
+
+/* ============ RENDER: GRID ============ */
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  const list = getVisibleNodes();
+  grid.classList.toggle('bulk-mode', state.bulkMode);
+
+  document.getElementById('trashCount').textContent = state.nodes.filter(n=>n.deleted).length;
+
+  if(!list.length){
+    grid.innerHTML = `<div class="empty-state">
+      <span class="brush">${state.view==='trash' ? '空' : '無'}</span>
+      <div class="mincho" style="font-size:16px; margin-bottom:4px;">${state.view==='trash' ? 'Tempat sampah kosong' : 'Belum ada node yang cocok'}</div>
+      <div style="font-size:12.5px;">${state.view==='trash' ? 'Node yang dihapus akan muncul di sini.' : 'Coba ubah pencarian/filter, atau buat node baru.'}</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(n=>{
+    const b = branchOf(n.branch);
+    const sel = state.selected.has(n.id);
+    const actions = state.view==='trash'
+      ? `<button class="restoreBtn" data-id="${n.id}" title="Pulihkan">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+         </button>
+         <button class="permDelBtn del" data-id="${n.id}" title="Hapus permanen">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+         </button>`
+      : `<button class="editBtn" data-id="${n.id}" title="Ubah">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+         </button>
+         <button class="delBtn del" data-id="${n.id}" title="Hapus">
+           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+         </button>`;
+    return `<div class="ema ${sel?'selected':''}" style="--branch-color:${b.color}" data-id="${n.id}">
+      <input type="checkbox" class="check pretty" data-id="${n.id}" ${sel?'checked':''}>
+      <div class="ema-branch"><span class="dot"></span>${escapeHtml(b.label)}</div>
+      <h3 class="mincho">${escapeHtml(n.title)}</h3>
+      <p>${escapeHtml(n.description||'')}</p>
+      <div class="tags">${(n.tags||[]).map(t=>`<span>#${escapeHtml(t)}</span>`).join('')}</div>
+      <div class="meta">
+        <span>${state.view==='trash' ? 'Dihapus '+fmtDate(n.deletedAt) : fmtDate(n.updatedAt)}</span>
+        <div class="actions">${actions}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // wire card events
+  grid.querySelectorAll('.check').forEach(cb=>{
+    cb.addEventListener('click', e=>{
+      e.stopPropagation();
+      const id = cb.dataset.id;
+      if(state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+      renderGrid(); renderBulkBar();
+    });
+  });
+  grid.querySelectorAll('.editBtn').forEach(b=> b.addEventListener('click', ()=> openNodeModal(b.dataset.id)));
+  grid.querySelectorAll('.delBtn').forEach(b=> b.addEventListener('click', ()=> confirmAction(
+    'Hapus Node', 'Node akan dipindahkan ke Tempat Sampah dan dapat dipulihkan nanti.',
+    ()=>{ softDelete([b.dataset.id]); }
+  )));
+  grid.querySelectorAll('.restoreBtn').forEach(b=> b.addEventListener('click', ()=> restoreNodes([b.dataset.id])));
+  grid.querySelectorAll('.permDelBtn').forEach(b=> b.addEventListener('click', ()=> confirmAction(
+    'Hapus Permanen', 'Tindakan ini tidak dapat dibatalkan. Node akan dihapus selamanya.',
+    ()=>{ permanentDelete([b.dataset.id]); }
+  )));
+}
+
+function renderAll(){
+  renderLegend();
+  renderTagbar();
+  document.getElementById('trashCount').textContent = state.nodes.filter(n=>n.deleted).length;
+  const isMap = state.view === 'map';
+  document.getElementById('grid').style.display = isMap ? 'none' : 'grid';
+  document.getElementById('mapWrap').classList.toggle('show', isMap);
+  if(isMap) renderMap(); else renderGrid();
+  renderBulkBar();
+  document.getElementById('btnViewActive').classList.toggle('active', state.view==='active');
+  document.getElementById('btnViewTrash').classList.toggle('active', state.view==='trash');
+  document.getElementById('btnViewMap').classList.toggle('active', isMap);
+  saveState();
+}
+
+/* ============ CRUD ============ */
+function softDelete(ids){
+  const now = Date.now();
+  state.nodes.forEach(n=>{ if(ids.includes(n.id)){ n.deleted=true; n.deletedAt=now; } });
+  ids.forEach(id=>state.selected.delete(id));
+  renderAll();
+  toast(`${ids.length} node dipindahkan ke sampah.`);
+}
+function restoreNodes(ids){
+  state.nodes.forEach(n=>{ if(ids.includes(n.id)){ n.deleted=false; n.deletedAt=null; } });
+  ids.forEach(id=>state.selected.delete(id));
+  renderAll();
+  toast(`${ids.length} node dipulihkan.`);
+}
+function permanentDelete(ids){
+  state.nodes = state.nodes.filter(n=> !ids.includes(n.id));
+  state.connections = state.connections.filter(c=> !ids.includes(c.from) && !ids.includes(c.to));
+  ids.forEach(id=>state.selected.delete(id));
+  renderAll();
+  toast(`${ids.length} node dihapus permanen.`);
+}
+
+/* ============ NODE MODAL ============ */
+let editingTags = [];
+function renderBranchOptions(selected){
+  const wrap = document.getElementById('branchOptions');
+  wrap.innerHTML = BRANCHES.map(b=>`
+    <div class="branch-opt ${selected===b.key?'sel':''}" data-key="${b.key}">
+      <span class="dot" style="background:${b.color}"></span>${escapeHtml(b.label)}
+    </div>`).join('');
+  wrap.querySelectorAll('.branch-opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      wrap.querySelectorAll('.branch-opt').forEach(o=>o.classList.remove('sel'));
+      el.classList.add('sel');
+      wrap.dataset.selected = el.dataset.key;
+    });
+  });
+  wrap.dataset.selected = selected;
+}
+function renderTagChips(){
+  const box = document.getElementById('tagBox');
+  const input = document.getElementById('tagInput');
+  box.querySelectorAll('.chip').forEach(c=>c.remove());
+  editingTags.forEach((t,i)=>{
+    const chip = document.createElement('span');
+    chip.className='chip';
+    chip.innerHTML = `#${escapeHtml(t)} <b data-i="${i}">&times;</b>`;
+    box.insertBefore(chip, input);
+  });
+  box.querySelectorAll('b').forEach(b=> b.addEventListener('click', ()=>{
+    editingTags.splice(+b.dataset.i,1); renderTagChips();
+  }));
+}
+function openNodeModal(id){
+  const overlay = document.getElementById('nodeOverlay');
+  const node = id ? state.nodes.find(n=>n.id===id) : null;
+  document.getElementById('nodeModalTitle').textContent = node ? 'Ubah Node' : 'Node Baru';
+  document.getElementById('nodeId').value = node ? node.id : '';
+  document.getElementById('fTitle').value = node ? node.title : '';
+  document.getElementById('fDesc').value = node ? node.description : '';
+  editingTags = node ? [...(node.tags||[])] : [];
+  renderBranchOptions(node ? node.branch : 'apps');
+  renderTagChips();
+  document.getElementById('tagInput').value='';
+  overlay.classList.add('show');
+  document.getElementById('fTitle').focus();
+}
+function closeNodeModal(){ document.getElementById('nodeOverlay').classList.remove('show'); }
+
+document.getElementById('tagInput').addEventListener('keydown', e=>{
+  const input = e.target;
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const v = input.value.trim().replace(/^#/,'');
+    if(v && !editingTags.includes(v)){ editingTags.push(v); renderTagChips(); }
+    input.value='';
+  } else if(e.key==='Backspace' && !input.value){
+    editingTags.pop(); renderTagChips();
+  }
+});
+
+document.getElementById('saveNode').addEventListener('click', ()=>{
+  const title = document.getElementById('fTitle').value.trim();
+  if(!title){ toast('Judul tidak boleh kosong.'); return; }
+  const id = document.getElementById('nodeId').value;
+  const branch = document.getElementById('branchOptions').dataset.selected || 'apps';
+  const desc = document.getElementById('fDesc').value.trim();
+  const now = Date.now();
+  if(id){
+    const n = state.nodes.find(x=>x.id===id);
+    Object.assign(n, {title, branch, description:desc, tags:[...editingTags], updatedAt:now});
+    toast('Node diperbarui.');
+  } else {
+    state.nodes.unshift({id:uid(), title, branch, description:desc, tags:[...editingTags], createdAt:now, updatedAt:now, deleted:false, deletedAt:null});
+    toast('Node baru ditambahkan.');
+  }
+  closeNodeModal();
+  renderAll();
+});
+document.getElementById('closeNode').addEventListener('click', closeNodeModal);
+document.getElementById('cancelNode').addEventListener('click', closeNodeModal);
+document.getElementById('btnAdd').addEventListener('click', ()=> openNodeModal(null));
+
+/* ============ SEARCH / SORT / VIEW ============ */
+document.getElementById('search').addEventListener('input', e=>{ state.search = e.target.value; renderGrid(); });
+document.getElementById('sortSel').addEventListener('change', e=>{ state.sort = e.target.value; renderGrid(); });
+document.getElementById('btnViewActive').addEventListener('click', ()=>{ state.view='active'; state.selected.clear(); renderAll(); });
+document.getElementById('btnViewTrash').addEventListener('click', ()=>{ state.view='trash'; state.selected.clear(); renderAll(); });
+document.getElementById('btnViewMap').addEventListener('click', ()=>{ state.view='map'; state.selected.clear(); renderAll(); });
+
+/* ============ BULK MODE ============ */
+document.getElementById('btnBulkMode').addEventListener('click', (e)=>{
+  state.bulkMode = !state.bulkMode;
+  e.currentTarget.classList.toggle('active', state.bulkMode);
+  if(!state.bulkMode) state.selected.clear();
+  renderGrid(); renderBulkBar();
+});
+function renderBulkBar(){
+  const bar = document.getElementById('bulkBar');
+  const n = state.selected.size;
+  document.getElementById('bulkCount').textContent = n;
+  bar.classList.toggle('show', n>0);
+  document.getElementById('bulkRestore').style.display = state.view==='trash' ? 'inline-flex':'none';
+  document.getElementById('bulkPermDelete').style.display = state.view==='trash' ? 'inline-flex':'none';
+  document.getElementById('bulkDelete').style.display = state.view==='trash' ? 'none':'inline-flex';
+}
+document.getElementById('bulkDelete').addEventListener('click', ()=>{
+  const ids=[...state.selected];
+  confirmAction('Hapus Node Terpilih', `${ids.length} node akan dipindahkan ke Tempat Sampah.`, ()=> softDelete(ids));
+});
+document.getElementById('bulkRestore').addEventListener('click', ()=> restoreNodes([...state.selected]));
+document.getElementById('bulkPermDelete').addEventListener('click', ()=>{
+  const ids=[...state.selected];
+  confirmAction('Hapus Permanen', `${ids.length} node akan dihapus selamanya dan tidak dapat dipulihkan.`, ()=> permanentDelete(ids));
+});
+document.getElementById('bulkClear').addEventListener('click', ()=>{ state.selected.clear(); renderGrid(); renderBulkBar(); });
+
+/* ============ CONFIRM MODAL ============ */
+let confirmCb = null;
+function confirmAction(title, msg, cb){
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  confirmCb = cb;
+  document.getElementById('confirmOverlay').classList.add('show');
+}
+document.getElementById('confirmOk').addEventListener('click', ()=>{
+  document.getElementById('confirmOverlay').classList.remove('show');
+  if(confirmCb) confirmCb();
+  confirmCb = null;
+});
+document.getElementById('confirmCancel').addEventListener('click', ()=>{
+  document.getElementById('confirmOverlay').classList.remove('show'); confirmCb=null;
+});
+document.getElementById('closeConfirm').addEventListener('click', ()=>{
+  document.getElementById('confirmOverlay').classList.remove('show'); confirmCb=null;
+});
+
+/* ============ MIND MAP CANVAS (draggable nodes + connections) ============ */
+const MAP_NODE_W = 188, MAP_NODE_H = 64; // approx box size, used to find center points
+
+/* ---- zoom (perbesar / perkecil / tampilkan semua) ---- */
+let mapZoom = 1;
+const MAP_ZOOM_MIN = 0.25, MAP_ZOOM_MAX = 2, MAP_ZOOM_STEP = 0.1;
+
+function applyMapZoom(z){
+  mapZoom = Math.min(MAP_ZOOM_MAX, Math.max(MAP_ZOOM_MIN, z));
+  const layer = document.getElementById('mapZoomLayer');
+  if(layer) layer.style.transform = `scale(${mapZoom})`;
+  const label = document.getElementById('btnZoomReset');
+  if(label) label.textContent = Math.round(mapZoom*100)+'%';
+}
+
+function zoomMapBy(delta){ applyMapZoom(mapZoom + delta); }
+
+function fitMapToView(){
+  const list = mapVisibleNodes();
+  if(!list.length){ toast('Tidak ada node untuk ditampilkan di peta.'); return; }
+  ensureNodePositions(list);
+  const canvas = document.getElementById('mapCanvas');
+  const pad = 60;
+  let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+  list.forEach(n=>{
+    minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x+MAP_NODE_W); maxY = Math.max(maxY, n.y+MAP_NODE_H);
+  });
+  const contentW = (maxX-minX)+pad*2, contentH = (maxY-minY)+pad*2;
+  const availW = canvas.clientWidth, availH = canvas.clientHeight;
+  const scale = Math.min(availW/contentW, availH/contentH, MAP_ZOOM_MAX);
+  applyMapZoom(Math.max(MAP_ZOOM_MIN, scale));
+  requestAnimationFrame(()=>{
+    canvas.scrollLeft = Math.max(0, (minX-pad) * mapZoom);
+    canvas.scrollTop = Math.max(0, (minY-pad) * mapZoom);
+  });
+  toast('Seluruh node ditampilkan dalam satu layar.');
+}
+
+document.getElementById('btnZoomIn').addEventListener('click', ()=> zoomMapBy(MAP_ZOOM_STEP));
+document.getElementById('btnZoomOut').addEventListener('click', ()=> zoomMapBy(-MAP_ZOOM_STEP));
+document.getElementById('btnZoomReset').addEventListener('click', ()=> applyMapZoom(1));
+document.getElementById('btnFitView').addEventListener('click', fitMapToView);
+document.getElementById('mapCanvas').addEventListener('wheel', (e)=>{
+  if(!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  zoomMapBy(e.deltaY < 0 ? MAP_ZOOM_STEP : -MAP_ZOOM_STEP);
+}, {passive:false});
+
+function ensureNodePositions(list){
+  const need = list.filter(n => n.x==null || n.y==null);
+  if(!need.length) return;
+  const cx = 1050, cy = 700, r = Math.max(300, list.length*36);
+  need.forEach(n=>{
+    const idx = list.indexOf(n);
+    const angle = (idx / Math.max(list.length,1)) * Math.PI*2;
+    n.x = Math.max(10, cx + r*Math.cos(angle) - MAP_NODE_W/2);
+    n.y = Math.max(10, cy + r*Math.sin(angle) - MAP_NODE_H/2);
+  });
+}
+
+let mapDrag = null;     // {id, offX, offY}
+let connectDrag = null; // {fromId, x, y}
+
+function mapVisibleNodes(){
+  // same filter/search/tag/branch logic as the grid, but always the "active" (non-deleted) pool
+  let list = state.nodes.filter(n=>!n.deleted);
+  if(state.search.trim()){
+    const q = state.search.trim().toLowerCase();
+    list = list.filter(n =>
+      n.title.toLowerCase().includes(q) ||
+      (n.description||'').toLowerCase().includes(q) ||
+      (n.tags||[]).some(t=>t.toLowerCase().includes(q))
+    );
+  }
+  if(state.activeBranchFilter) list = list.filter(n => n.branch === state.activeBranchFilter);
+  if(state.activeTagFilter) list = list.filter(n => (n.tags||[]).includes(state.activeTagFilter));
+  return list;
+}
+
+function renderMap(){
+  const list = mapVisibleNodes();
+  ensureNodePositions(list);
+  const nodesWrap = document.getElementById('mapNodes');
+
+  if(!list.length){
+    nodesWrap.innerHTML = `<div style="position:absolute; top:24px; left:24px; color:var(--ink-faint); font-size:13px;">Tidak ada node yang cocok untuk ditampilkan di peta.</div>`;
+    document.getElementById('mapSvg').innerHTML = '';
+    return;
+  }
+
+  nodesWrap.innerHTML = list.map(n=>{
+    const b = branchOf(n.branch);
+    return `<div class="map-node" style="left:${n.x}px; top:${n.y}px; --branch-color:${b.color}" data-id="${n.id}">
+      <span class="branch-tag">${escapeHtml(b.label)}</span>
+      <h4 class="mincho">${escapeHtml(n.title)}</h4>
+      <div class="map-port" data-id="${n.id}" title="Tarik untuk menghubungkan ke node lain"></div>
+    </div>`;
+  }).join('');
+
+  wireMapNodeEvents();
+  drawConnections(list);
+}
+
+function wireMapNodeEvents(){
+  document.querySelectorAll('.map-node').forEach(el=>{
+    el.addEventListener('pointerdown', (e)=>{
+      if(e.target.classList.contains('map-port')) return;
+      const id = el.dataset.id;
+      const n = state.nodes.find(x=>x.id===id);
+      if(!n) return;
+      const wrapRect = document.getElementById('mapNodes').getBoundingClientRect();
+      mapDrag = { id, offX: (e.clientX - wrapRect.left)/mapZoom - n.x, offY: (e.clientY - wrapRect.top)/mapZoom - n.y };
+      el.classList.add('dragging');
+      try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    });
+  });
+  document.querySelectorAll('.map-port').forEach(p=>{
+    p.addEventListener('pointerdown', (e)=>{
+      e.stopPropagation();
+      connectDrag = { fromId: p.dataset.id, x:null, y:null };
+      try{ p.setPointerCapture(e.pointerId); }catch(err){}
+    });
+  });
+}
+
+document.addEventListener('pointermove', (e)=>{
+  if(!mapDrag && !connectDrag) return;
+  const wrapEl = document.getElementById('mapNodes');
+  if(!wrapEl) return;
+  const wrapRect = wrapEl.getBoundingClientRect();
+  const x = (e.clientX - wrapRect.left)/mapZoom, y = (e.clientY - wrapRect.top)/mapZoom;
+
+  if(mapDrag){
+    const n = state.nodes.find(nd=>nd.id===mapDrag.id);
+    if(n){
+      n.x = Math.max(0, x - mapDrag.offX);
+      n.y = Math.max(0, y - mapDrag.offY);
+      const el = document.querySelector(`.map-node[data-id="${mapDrag.id}"]`);
+      if(el){ el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+      drawConnections(mapVisibleNodes());
+    }
+  } else if(connectDrag){
+    connectDrag.x = x; connectDrag.y = y;
+    drawConnections(mapVisibleNodes());
+  }
+});
+
+document.addEventListener('pointerup', (e)=>{
+  if(connectDrag){
+    const underEl = document.elementFromPoint(e.clientX, e.clientY);
+    const targetNode = underEl ? underEl.closest('.map-node') : null;
+    if(targetNode && targetNode.dataset.id !== connectDrag.fromId){
+      addConnection(connectDrag.fromId, targetNode.dataset.id);
+    }
+    connectDrag = null;
+    drawConnections(mapVisibleNodes());
+  }
+  if(mapDrag){
+    const el = document.querySelector(`.map-node[data-id="${mapDrag.id}"]`);
+    if(el) el.classList.remove('dragging');
+    mapDrag = null;
+    saveState();
+  }
+});
+
+function addConnection(a, b){
+  if(a===b) return;
+  const exists = state.connections.some(c => (c.from===a && c.to===b) || (c.from===b && c.to===a));
+  if(exists){ toast('Node ini sudah terhubung.'); return; }
+  state.connections.push({ id: uid(), from:a, to:b });
+  toast('Node berhasil dihubungkan.');
+  saveState();
+}
+
+function deleteConnection(id){
+  state.connections = state.connections.filter(c=>c.id!==id);
+  drawConnections(mapVisibleNodes());
+  toast('Koneksi diputus.');
+  saveState();
+}
+
+function drawConnections(list){
+  const svg = document.getElementById('mapSvg');
+  const byId = {};
+  list.forEach(n=> byId[n.id]=n);
+  let html = '';
+
+  state.connections.forEach(c=>{
+    const a = byId[c.from], b = byId[c.to];
+    if(!a || !b) return;
+    const x1=a.x+MAP_NODE_W/2, y1=a.y+MAP_NODE_H/2, x2=b.x+MAP_NODE_W/2, y2=b.y+MAP_NODE_H/2;
+    const mx=(x1+x2)/2, my=(y1+y2)/2;
+    html += `<line class="map-line" data-cid="${c.id}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+      stroke="var(--cord)" stroke-width="2.2" style="pointer-events:stroke; cursor:pointer;"/>
+      <g class="map-line-del" data-cid="${c.id}" transform="translate(${mx},${my})" style="pointer-events:all;">
+        <circle r="8" fill="var(--vermillion)"/>
+        <text x="0" y="3.5" text-anchor="middle" font-size="10" fill="#fff" style="pointer-events:none;">&times;</text>
+      </g>`;
+  });
+
+  if(connectDrag && connectDrag.x!=null){
+    const a = byId[connectDrag.fromId];
+    if(a){
+      html += `<line class="map-temp-line" x1="${a.x+MAP_NODE_W}" y1="${a.y+MAP_NODE_H/2}" x2="${connectDrag.x}" y2="${connectDrag.y}"
+        stroke="var(--gold)" stroke-width="2" stroke-dasharray="5 4" fill="none"/>`;
+    }
+  }
+
+  svg.innerHTML = html;
+  svg.querySelectorAll('.map-line-del').forEach(g=>{
+    g.addEventListener('click', e=>{ e.stopPropagation(); deleteConnection(g.dataset.cid); });
+  });
+}
+
+document.getElementById('btnResetLayout').addEventListener('click', ()=>{
+  confirmAction('Atur Ulang Tata Letak', 'Posisi semua node di peta akan disusun ulang secara otomatis.', ()=>{
+    state.nodes.forEach(n=>{ n.x=null; n.y=null; });
+    renderMap();
+    saveState();
+    toast('Tata letak diatur ulang.');
+  });
+});
+document.getElementById('btnClearConnections').addEventListener('click', ()=>{
+  if(!state.connections.length){ toast('Belum ada koneksi.'); return; }
+  confirmAction('Hapus Semua Koneksi', 'Seluruh garis penghubung antar node akan dihapus. Tindakan ini tidak dapat dibatalkan.', ()=>{
+    state.connections = [];
+    renderMap();
+    saveState();
+    toast('Semua koneksi dihapus.');
+  });
+});
+
+/* ============ THEME ============ */
+function applyTheme(t){
+  state.theme = t;
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeLightBtn').classList.toggle('active', t==='light');
+  document.getElementById('themeDarkBtn').classList.toggle('active', t==='dark');
+  const icon = document.getElementById('themeIcon');
+  icon.innerHTML = t==='dark'
+    ? '<path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z"/>'
+    : '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>';
+  saveState();
+}
+document.getElementById('btnTheme').addEventListener('click', ()=> applyTheme(state.theme==='light'?'dark':'light'));
+document.getElementById('themeLightBtn').addEventListener('click', ()=> applyTheme('light'));
+document.getElementById('themeDarkBtn').addEventListener('click', ()=> applyTheme('dark'));
+
+/* ============ SETTINGS MODAL ============ */
+document.getElementById('btnSettings').addEventListener('click', ()=> document.getElementById('settingsOverlay').classList.add('show'));
+document.getElementById('closeSettings').addEventListener('click', ()=> document.getElementById('settingsOverlay').classList.remove('show'));
+document.getElementById('doneSettings').addEventListener('click', ()=> document.getElementById('settingsOverlay').classList.remove('show'));
+
+/* Backup */
+document.getElementById('btnBackup').addEventListener('click', ()=>{
+  const payload = { exportedAt: new Date().toISOString(), theme: state.theme, nodes: state.nodes, connections: state.connections };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `wagokoro-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  toast('Backup berhasil diunduh.');
+});
+
+/* Restore */
+document.getElementById('btnRestore').addEventListener('click', ()=> document.getElementById('fileRestore').click());
+document.getElementById('fileRestore').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!Array.isArray(data.nodes)) throw new Error('format tidak valid');
+      confirmAction('Pulihkan Data', `File berisi ${data.nodes.length} node. Data saat ini akan ditimpa. Lanjutkan?`, ()=>{
+        state.nodes = data.nodes;
+        state.connections = Array.isArray(data.connections) ? data.connections : [];
+        if(data.theme) applyTheme(data.theme);
+        state.selected.clear();
+        renderAll();
+        toast('Data berhasil dipulihkan dari backup.');
+      });
+    }catch(err){
+      toast('Gagal membaca file backup: format tidak valid.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+});
+
+/* Reset data / settings */
+document.getElementById('btnResetData').addEventListener('click', ()=>{
+  confirmAction('Reset Semua Data', 'Seluruh node (termasuk sampah) akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.', ()=>{
+    state.nodes = [];
+    state.connections = [];
+    state.selected.clear();
+    state.activeBranchFilter=null; state.activeTagFilter=null;
+    renderAll();
+    toast('Semua data telah direset.');
+  });
+});
+document.getElementById('btnResetSettings').addEventListener('click', ()=>{
+  confirmAction('Reset Pengaturan', 'Tema, filter, dan urutan akan dikembalikan ke default.', ()=>{
+    applyTheme('light');
+    state.search=''; document.getElementById('search').value='';
+    state.sort='newest'; document.getElementById('sortSel').value='newest';
+    state.activeBranchFilter=null; state.activeTagFilter=null;
+    state.view='active';
+    renderAll();
+    toast('Pengaturan telah direset.');
+  });
+});
+
+/* ============ PRINT PDF ============ */
+document.getElementById('btnPrint').addEventListener('click', ()=>{
+  const list = getVisibleNodes();
+  const area = document.getElementById('printArea');
+  area.innerHTML = `
+    <h1>Wagokoro — Pengelola Peta Pikiran</h1>
+    <p>Dicetak: ${new Date().toLocaleString('id-ID')} &nbsp;|&nbsp; Tampilan: ${state.view==='trash'?'Tempat Sampah':'Aktif'} &nbsp;|&nbsp; Total: ${list.length} node</p>
+    <table>
+      <thead><tr><th>Judul</th><th>Cabang</th><th>Deskripsi</th><th>Tag</th><th>Tanggal</th></tr></thead>
+      <tbody>
+        ${list.map(n=>`<tr>
+          <td>${escapeHtml(n.title)}</td>
+          <td>${escapeHtml(branchOf(n.branch).label)}</td>
+          <td>${escapeHtml(n.description||'')}</td>
+          <td>${(n.tags||[]).map(t=>'#'+t).join(', ')}</td>
+          <td>${fmtDate(n.updatedAt)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  window.print();
+});
+
+/* ============ EXPORT EXCEL ============ */
+document.getElementById('btnExcel').addEventListener('click', ()=>{
+  const list = getVisibleNodes();
+  if(!list.length){ toast('Tidak ada data untuk diekspor.'); return; }
+  const rows = list.map(n=>({
+    Judul: n.title,
+    Cabang: branchOf(n.branch).label,
+    Deskripsi: n.description||'',
+    Tag: (n.tags||[]).join(', '),
+    Dibuat: fmtDate(n.createdAt),
+    Diperbarui: fmtDate(n.updatedAt),
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:22},{wch:22},{wch:40},{wch:24},{wch:12},{wch:12}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Mind Map');
+  XLSX.writeFile(wb, `wagokoro-mindmap-${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast('Data diekspor ke Excel.');
+});
+
+/* ============ INIT ============ */
+applyTheme(state.theme);
+applyMapZoom(1);
+renderAll();
+if(savedState) toast('Data tersimpan sebelumnya berhasil dimuat.');
+</script>
+</body>
+</html>
